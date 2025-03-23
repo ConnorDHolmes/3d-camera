@@ -1,0 +1,141 @@
+/* * {
+  box-sizing: border-box;
+  backface-visibility: hidden;
+} */
+
+html,
+body {
+  overscroll-behavior: none;
+}
+
+body {
+  contain: strict;
+  margin: 0;
+  height: 100vh;
+  background-color: #000;
+  display: grid;
+  place-items: center;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+#viewport {
+  content-visibility: visible;
+  contain-intrinsic-size: 1024px 768px;
+  contain: strict;
+  perspective: 1024px;
+  /* no idea if this transform is helpful */
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  background-color: lightblue;
+  /* filter: url("#pixelate"); */
+  /* pointer-events: none; */
+}
+
+svg,
+#scene,
+#player-col,
+#player-col-top,
+#player-sprite,
+.side {
+  position: absolute;
+}
+
+#scene {
+  /* no idea if the will-change is effective here */
+  will-change: transform;
+  contain: layout size;
+  contain-intrinsic-size: 0;
+  inset: 50%;
+  /* for 1st person, change translateZ value to same value as viewport perspective */
+  /* can use basically any value between 0 and the perspective value (including negative) for 3rd-person */
+  transform: translateZ(1024px) rotate3d(1, 0, 0, var(--angle-x))
+    rotate3d(0, 0, 1, var(--angle-z))
+    translate3d(var(--scene-x), var(--scene-y), var(--scene-z));
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+#player-col {
+  contain-intrinsic-size: 0;
+  /* no idea if the will-change is effective here */
+  /* will-change: transform; */
+  width: var(--player-width);
+  height: var(--player-length);
+  transform: translate3d(var(--player-x), var(--player-y), var(--player-z));
+  background-color: red;
+  backface-visibility: hidden;
+  z-index: 1;
+}
+
+#player-col-top {
+  contain-intrinsic-size: 0;
+  /* will-change: transform; */
+  width: var(--player-width);
+  height: var(--player-length);
+  transform: translate3d(
+    var(--player-x),
+    var(--player-y),
+    calc(var(--player-z) + var(--player-height))
+  );
+  background-color: blue;
+  backface-visibility: hidden;
+}
+
+#player-sprite {
+  contain-intrinsic-size: 0;
+  width: var(--player-width);
+  height: var(--player-height);
+  transform-origin: center bottom;
+  transform: translate3d(
+      var(--player-x),
+      calc(
+        var(--player-y) - var(--player-height) + (0.5 * var(--player-length))
+      ),
+      var(--player-z)
+    )
+    rotate3d(1, 0, 0, -90deg) rotate3d(0, 1, 0, var(--angle-z));
+  background-color: pink;
+}
+
+.side {
+  backface-visibility: hidden;
+}
+
+/* .side.right {
+  display: var(--right-vis);
+  transform: var(--right-vis) !important;
+}
+
+.side.left {
+  display: var(--left-vis);
+  transform: var(--left-vis) !important;
+}
+
+.side.back {
+  display: var(--back-vis);
+  transform: var(--back-vis) !important;
+}
+
+.side.front {
+  display: var(--front-vis);
+  transform: var(--front-vis) !important;
+} */
+
+/* .cfe-base {
+  position: absolute;
+  background-color: coral;
+  width: 64px;
+  height: 64px;
+  transform: translate3d(1024px, 1024px, 0);
+}
+
+.cfe-ph {
+  position: absolute;
+  background-color: royalblue;
+  width: 64px;
+  height: 96px;
+  transform-origin: bottom;
+  transform: translate3d(1024px, 1024px, 0) rotateX(-90deg)
+    rotateY(var(--angle-z));
+} */
