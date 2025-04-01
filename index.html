@@ -8,22 +8,14 @@
   </head>
   <body>
     <div id="viewport">
-      <div id="scene">
-        <!-- <div class="cfe-base"></div>
-      <div class="cfe-ph"></div> -->
-      </div>
+      <div id="scene"></div>
     </div>
-
-    <svg>
-      <filter id="pixelate" x="0" y="0">
-        <feFlood x="1" y="1" height="0.5" width="0.5" />
-        <feComposite width="2.5" height="2.5" />
-        <feTile result="a" />
-        <feComposite in="SourceGraphic" in2="a" operator="in" />
-        <feMorphology operator="dilate" radius="1.25" />
-      </filter>
-    </svg>
 
     <script src="script.js"></script>
   </body>
 </html>
+
+<!--
+Instead of compiling all face instances onto one img layer for each value, maybe the key is to break 
+them down into even smaller parts, then incorporate some kind of culling to only render the specific parts visible to the camera.
+-->

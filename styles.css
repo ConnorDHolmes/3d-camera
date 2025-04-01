@@ -21,24 +21,24 @@ body {
 
 #viewport {
   content-visibility: visible;
-  contain-intrinsic-size: 1024px 768px;
+  contain-intrinsic-size: var(--width) var(--height);
   contain: strict;
-  perspective: 1024px;
-  /* no idea if this transform is helpful */
-  transform: translate3d(0, 0, 0);
-  backface-visibility: hidden;
+  perspective: var(--perspective);
   background-color: lightblue;
-  /* filter: url("#pixelate"); */
-  /* pointer-events: none; */
+  filter: url("#pixelate");
+  transform: scale3d(var(--scale), var(--scale), 1);
+  pointer-events: none;
 }
 
-svg,
-#scene,
-#player-col,
-#player-col-top,
-#player-sprite,
-.side {
+svg {
   position: absolute;
+}
+
+#scene,
+#scene > * {
+  content-visibility: visible;
+  position: absolute;
+  backface-visibility: hidden;
 }
 
 #scene {
@@ -47,13 +47,14 @@ svg,
   contain: layout size;
   contain-intrinsic-size: 0;
   inset: 50%;
+  /* image-rendering: optimizeSpeed; */
+  image-rendering: pixelated;
+  transform-style: preserve-3d;
   /* for 1st person, change translateZ value to same value as viewport perspective */
   /* can use basically any value between 0 and the perspective value (including negative) for 3rd-person */
-  transform: translateZ(1024px) rotate3d(1, 0, 0, var(--angle-x))
+  transform: translateZ(var(--perspective)) rotate3d(1, 0, 0, var(--angle-x))
     rotate3d(0, 0, 1, var(--angle-z))
     translate3d(var(--scene-x), var(--scene-y), var(--scene-z));
-  transform-style: preserve-3d;
-  backface-visibility: hidden;
 }
 
 #player-col {
@@ -64,7 +65,7 @@ svg,
   height: var(--player-length);
   transform: translate3d(var(--player-x), var(--player-y), var(--player-z));
   background-color: red;
-  backface-visibility: hidden;
+  /* backface-visibility: hidden; */
   z-index: 1;
 }
 
@@ -79,7 +80,7 @@ svg,
     calc(var(--player-z) + var(--player-height))
   );
   background-color: blue;
-  backface-visibility: hidden;
+  /* backface-visibility: hidden; */
 }
 
 #player-sprite {
@@ -98,9 +99,12 @@ svg,
   background-color: pink;
 }
 
-.side {
-  backface-visibility: hidden;
+img {
 }
+
+/* .side {
+  backface-visibility: hidden;
+} */
 
 /* .side.right {
   display: var(--right-vis);

@@ -1,12 +1,26 @@
 "use strict";
 
-// const scaleMultiplier = 1;
+const scaleMultiplier = 0.25;
 
-// const scaleProps = (obj) => {
-//   return Object.fromEntries(
-//     Object.entries(obj).map(([key, value]) => [key, value * scaleMultiplier])
-//   );
-// };
+const scaleProps = (obj) => {
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, value]) => [key, value * scaleMultiplier])
+  );
+};
+
+document.body.innerHTML += `<svg>
+      <filter id="pixelate" x="0" y="0">
+        <feFlood x="${2 * scaleMultiplier}" y="${
+  2 * scaleMultiplier
+}" height="${1 * scaleMultiplier}" width="${1 * scaleMultiplier}" />
+        <feComposite width="${5 * scaleMultiplier}" height="${
+  5 * scaleMultiplier
+}" />
+        <feTile result="a" />
+        <feComposite in="SourceGraphic" in2="a" operator="in" />
+        <feMorphology operator="dilate" radius="${2.5 * scaleMultiplier}" />
+      </filter>
+    </svg>`;
 
 //UTILS
 
@@ -44,8 +58,16 @@ const loadTexture = async (path) =>
     const tex = newImg();
     onFirst(
       "load",
-      () => {
-        TEXTURES[path] = tex;
+      async () => {
+        const { naturalWidth, naturalHeight } = tex;
+        const width = naturalWidth * scaleMultiplier;
+        const height = naturalHeight * scaleMultiplier;
+        const cnvs = newCanvas({ width, height });
+        const ctx = cnvs.getContext("2d");
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(tex, 0, 0, width, height);
+        const scaledTex = await createImageBitmap(cnvs);
+        TEXTURES[path] = scaledTex;
         resolve();
       },
       tex
@@ -66,38 +88,13 @@ const loadAllTextures = async (list) =>
 // collision
 
 const isCollision = (entity1, entity2) => {
-  const {
-      x: x1,
-      y: y1,
-      z: z1,
-      width: width1,
-      length: length1,
-      height: height1,
-    } = entity1,
-    {
-      x: x2,
-      y: y2,
-      z: z2,
-      width: width2,
-      length: length2,
-      height: height2,
-    } = entity2;
-
-  const maxX1 = x1 + width1;
-  const maxY1 = y1 + length1;
-  const maxZ1 = z1 + height1;
-
-  const maxX2 = x2 + width2;
-  const maxY2 = y2 + length2;
-  const maxZ2 = z2 + height2;
-
   if (
-    x1 <= maxX2 &&
-    maxX1 >= x2 &&
-    y1 <= maxY2 &&
-    maxY1 >= y2 &&
-    z1 <= maxZ2 &&
-    maxZ1 >= z2
+    entity1.x <= entity2.x + entity2.width &&
+    entity1.x + entity1.width >= entity2.x &&
+    entity1.y <= entity2.y + entity2.length &&
+    entity1.y + entity1.length >= entity2.y &&
+    entity1.z <= entity2.z + entity2.height &&
+    entity1.z + entity1.height >= entity2.z
   ) {
     return entity2;
   } else {
@@ -105,10 +102,8 @@ const isCollision = (entity1, entity2) => {
   }
 };
 
-const isGroupCollision = (entity1, group) => {
-  const collision = group.find((entity) => isCollision(entity1, entity));
-  return collision;
-};
+const isGroupCollision = (entity1, group) =>
+  group.find((entity) => isCollision(entity1, entity));
 
 //CLASSES
 
@@ -278,17 +273,19 @@ new Block(256, 2048, 256, 320, 1024, 32);
 
 new Block(3840, 3840, 0, 256, 256, 256);
 
-new Block(2048, 2048, 0, 384, 384, 1024);
+new Block(2048, 2048, 0, 384, 384, 768);
 
 new Block(1920, 1920, 384, 1280, 640, 64, { front: true });
 
-new Block(2668, 2048, 0, 384, 384, 1024);
+new Block(2668, 2048, 0, 384, 384, 768);
 
 new Block(1920, 2560, 0, 1280, 640, 448);
 
 new Block(2432, 3200, 0, 512, 320, 256, { back: true });
 
-new Block(2432, 3520, 224, 512, 576, 32, { back: true });
+new Block(2176, 3200, 0, 256, 128, 128, { back: true, right: true });
+
+new Block(2432, 3520, 224, 512, 576, 128);
 
 //CAMERA-FACING SPRITES
 
@@ -505,6 +502,19 @@ const resolveHiddenFaces = (angleZ) => {
   };
 };
 
+let TOGGLER = true;
+
+const initPlayerVariables = (player, perspective, width, height) => {
+  VIEWPORT.style.cssText = `
+  --width:${width * scaleMultiplier}px;
+  --height:${height * scaleMultiplier}px;
+  --scale:${1 / scaleMultiplier};
+  --perspective:${perspective * scaleMultiplier}px;
+  --player-height:${player.height * scaleMultiplier}px;
+  --player-width:${player.width * scaleMultiplier}px;
+  --player-length:${player.length * scaleMultiplier}px`;
+};
+
 const returnCSSText = (
   angleX,
   angleZ,
@@ -515,17 +525,23 @@ const returnCSSText = (
   pLength,
   pHeight
 ) => {
-  const sceneX = pX * -1 - pWidth * 0.5;
-  const sceneY = pY * -1 - pLength * 0.5;
-  const sceneZ = pZ * -1 - pHeight;
+  // const sceneX = pX * -1 - pWidth * 0.5;
+  // const sceneY = pY * -1 - pLength * 0.5;
+  // const sceneZ = pZ * -1 - pHeight;
 
   // const { rightVis, leftVis, backVis, frontVis } = resolveHiddenFaces(angleZ);
 
+  const scaledVals = scaleProps({ pX, pY, pZ, pWidth, pLength, pHeight });
+
   return `
-  --angle-x:${angleX}deg;--angle-z:${angleZ}deg;
-  --scene-x:${sceneX}px;--scene-y:${sceneY}px;--scene-z:${sceneZ}px;
-  --player-x:${pX}px;--player-y:${pY}px;--player-z:${pZ}px;--player-height:${pHeight}px;
-  --player-width:${pWidth}px;--player-length:${pLength}px`;
+  --angle-x:${angleX}deg;
+  --angle-z:${angleZ}deg;
+  --scene-x:${scaledVals.pX * -1 - scaledVals.pWidth * 0.5}px;
+  --scene-y:${scaledVals.pY * -1 - scaledVals.pLength * 0.5}px;
+  --scene-z:${scaledVals.pZ * -1 - scaledVals.pHeight}px;
+  --player-x:${scaledVals.pX}px;
+  --player-y:${scaledVals.pY}px;
+  --player-z:${scaledVals.pZ}px;`;
 };
 
 //--right-vis:${rightVis};--left-vis:${leftVis};--back-vis:${backVis};--front-vis:${frontVis}
@@ -545,10 +561,16 @@ on("mousemove", (e) => {
 
 const TARGET_FPS = 60;
 const SPEED_MULTIPLIER = 1 / (1000 / TARGET_FPS);
-let then = performance.now();
 
-const step = (timeStamp) => {
-  SCENE.style.cssText = returnCSSText(
+const SCENE_STYLE = SCENE.style;
+
+const step = (then, timeStamp) => {
+  const mult = (timeStamp - then) * SPEED_MULTIPLIER;
+
+  EasedValue.ease(mult);
+  resolveInputs(angleZ.target, PLAYER);
+
+  SCENE_STYLE.cssText = returnCSSText(
     angleX.eased,
     angleZ.eased,
     PLAYER.x,
@@ -559,24 +581,20 @@ const step = (timeStamp) => {
     PLAYER.height
   );
 
-  const mult = (timeStamp - then) * SPEED_MULTIPLIER;
-
-  EasedValue.ease(mult);
-  resolveInputs(angleZ.target, PLAYER);
-
-  // console.log(isGroupCollision(PLAYER, Block.instances));
-  // console.log(PLAYER.x, PLAYER.y);
-
-  // console.log(angleZ.target);
-
-  then = timeStamp;
-
-  requestAnimationFrame(step);
+  requestAnimationFrame((newTimeStamp) => step(timeStamp, newTimeStamp));
 };
 
 //LAYER BUILDING
 
-const compileLayers = (blocks) => {
+const compileLayers = (unscaledBlocks) => {
+  const blocks = unscaledBlocks.map((block) => {
+    const { x, y, z, width, length, height, omit } = block;
+    return {
+      ...scaleProps({ x, y, z, width, length, height }),
+      omit,
+    };
+  });
+
   const sidesToLighting = {
     front: "rgba(0, 0, 0, 0.15)",
     back: "rgba(0, 0, 0, 0.3)",
@@ -585,14 +603,22 @@ const compileLayers = (blocks) => {
     top: "rgba(0, 0, 0, 0)",
     bottom: "rgba(0, 0, 0, 0.55)",
   };
+
+  const faceQuality = 1;
+  const strokeThickness = 2.5 * scaleMultiplier;
+
   //TOP FACES
   const uniqueTopVals = [
-    ...new Set(blocks.map((block) => block.z + block.height)),
+    ...new Set(
+      blocks
+        .filter((block) => !block.omit.top)
+        .map((block) => block.z + block.height)
+    ),
   ];
 
   const topFaceLayers = uniqueTopVals.map((val) => [
     val,
-    blocks.filter((block) => block.z + block.height === val && !block.omit.top),
+    blocks.filter((block) => block.z + block.height === val),
   ]);
 
   topFaceLayers.forEach(([zVal, items]) => {
@@ -603,15 +629,19 @@ const compileLayers = (blocks) => {
     const height = Math.max(...items.map((item) => item.y + item.length)) - y;
 
     const cnvs = newCanvas({ width, height });
+
     const ctx = cnvs.getContext("2d");
 
     const pattern = ctx.createPattern(TEXTURES["grass"], "repeat");
 
     items.forEach((item) => {
+      ctx.globalCompositeOperation = "source-over";
       ctx.fillStyle = pattern;
       ctx.fillRect(item.x - x, item.y - y, item.width, item.length);
       ctx.fillStyle = sidesToLighting.top;
       ctx.fillRect(item.x - x, item.y - y, item.width, item.length);
+      ctx.lineWidth = strokeThickness;
+      ctx.globalCompositeOperation = "source-atop";
       ctx.strokeRect(item.x - x, item.y - y, item.width, item.length);
     });
 
@@ -622,8 +652,9 @@ const compileLayers = (blocks) => {
     cnvs.toBlob(
       (blob) => {
         const url = URL.createObjectURL(blob);
+
         const img = newImg({
-          class: "side",
+          // class: "side",
           style: `transform: translate3d(${x}px, ${y}px, ${zVal}px)`,
         });
 
@@ -639,21 +670,23 @@ const compileLayers = (blocks) => {
         img.src = url;
       },
       "image/webp",
-      0.75
+      faceQuality
     );
   });
 
   //FRONT FACES
 
   const uniqueFrontVals = [
-    ...new Set(blocks.map((block) => block.y + block.length)),
+    ...new Set(
+      blocks
+        .filter((block) => !block.omit.front)
+        .map((block) => block.y + block.length)
+    ),
   ];
 
   const frontFaceLayers = uniqueFrontVals.map((val) => [
     val,
-    blocks.filter(
-      (block) => block.y + block.length === val && !block.omit.front
-    ),
+    blocks.filter((block) => block.y + block.length === val),
   ]);
 
   frontFaceLayers.forEach(([yVal, items]) => {
@@ -669,6 +702,7 @@ const compileLayers = (blocks) => {
     const pattern = ctx.createPattern(TEXTURES["wall"], "repeat");
 
     items.forEach((item) => {
+      ctx.globalCompositeOperation = "source-over";
       ctx.fillStyle = pattern;
       ctx.fillRect(
         item.x - x,
@@ -683,6 +717,8 @@ const compileLayers = (blocks) => {
         item.width,
         item.height
       );
+      ctx.lineWidth = strokeThickness;
+      ctx.globalCompositeOperation = "source-atop";
       ctx.strokeRect(
         item.x - x,
         height + z - item.z - item.height,
@@ -699,7 +735,7 @@ const compileLayers = (blocks) => {
       (blob) => {
         const url = URL.createObjectURL(blob);
         const img = newImg({
-          class: "side",
+          // class: "side",
           style: `transform: translate3d(${x}px, ${yVal - height * 0.5}px, ${
             z + height * 0.5
           }px) rotate3d(1, 0, 0, -90deg)`,
@@ -717,17 +753,21 @@ const compileLayers = (blocks) => {
         img.src = url;
       },
       "image/webp",
-      0.75
+      faceQuality
     );
   });
 
   //LEFT FACES
 
-  const uniqueLeftVals = [...new Set(blocks.map((block) => block.x))];
+  const uniqueLeftVals = [
+    ...new Set(
+      blocks.filter((block) => !block.omit.left).map((block) => block.x)
+    ),
+  ];
 
   const leftFaceLayers = uniqueLeftVals.map((val) => [
     val,
-    blocks.filter((block) => block.x === val && !block.omit.left),
+    blocks.filter((block) => block.x === val),
   ]);
 
   leftFaceLayers.forEach(([xVal, items]) => {
@@ -743,6 +783,7 @@ const compileLayers = (blocks) => {
     const pattern = ctx.createPattern(TEXTURES["wall"], "repeat");
 
     items.forEach((item) => {
+      ctx.globalCompositeOperation = "source-over";
       ctx.fillStyle = pattern;
       ctx.fillRect(
         item.y - y,
@@ -757,6 +798,8 @@ const compileLayers = (blocks) => {
         item.length,
         item.height
       );
+      ctx.lineWidth = strokeThickness;
+      ctx.globalCompositeOperation = "source-atop";
       ctx.strokeRect(
         item.y - y,
         height + z - item.z - item.height,
@@ -773,7 +816,7 @@ const compileLayers = (blocks) => {
       (blob) => {
         const url = URL.createObjectURL(blob);
         const img = newImg({
-          class: "side",
+          // class: "side",
           style: `transform: translate3d(${xVal - width * 0.5}px, ${
             y + width * 0.5 - height * 0.5
           }px, ${
@@ -793,21 +836,23 @@ const compileLayers = (blocks) => {
         img.src = url;
       },
       "image/webp",
-      0.75
+      faceQuality
     );
   });
 
   //RIGHT FACES
 
   const uniqueRightVals = [
-    ...new Set(blocks.map((block) => block.x + block.width)),
+    ...new Set(
+      blocks
+        .filter((block) => !block.omit.right)
+        .map((block) => block.x + block.width)
+    ),
   ];
 
   const rightFaceLayers = uniqueRightVals.map((val) => [
     val,
-    blocks.filter(
-      (block) => block.x + block.width === val && !block.omit.right
-    ),
+    blocks.filter((block) => block.x + block.width === val),
   ]);
 
   rightFaceLayers.forEach(([xVal, items]) => {
@@ -823,6 +868,7 @@ const compileLayers = (blocks) => {
     const pattern = ctx.createPattern(TEXTURES["wall"], "repeat");
 
     items.forEach((item) => {
+      ctx.globalCompositeOperation = "source-over";
       ctx.fillStyle = pattern;
       ctx.fillRect(
         width - item.length - item.y + y,
@@ -837,6 +883,8 @@ const compileLayers = (blocks) => {
         item.length,
         item.height
       );
+      ctx.lineWidth = strokeThickness;
+      ctx.globalCompositeOperation = "source-atop";
       ctx.strokeRect(
         width - item.length - item.y + y,
         height + z - item.z - item.height,
@@ -853,7 +901,7 @@ const compileLayers = (blocks) => {
       (blob) => {
         const url = URL.createObjectURL(blob);
         const img = newImg({
-          class: "side",
+          // class: "side",
           style: `transform: translate3d(${xVal - width * 0.5}px, ${
             y + width * 0.5 - height * 0.5
           }px, ${
@@ -873,17 +921,21 @@ const compileLayers = (blocks) => {
         img.src = url;
       },
       "image/webp",
-      0.75
+      faceQuality
     );
   });
 
   //BACK FACES
 
-  const uniqueBackVals = [...new Set(blocks.map((block) => block.y))];
+  const uniqueBackVals = [
+    ...new Set(
+      blocks.filter((block) => !block.omit.back).map((block) => block.y)
+    ),
+  ];
 
   const backFaceLayers = uniqueBackVals.map((val) => [
     val,
-    blocks.filter((block) => block.y === val && !block.omit.back),
+    blocks.filter((block) => block.y === val),
   ]);
 
   backFaceLayers.forEach(([yVal, items]) => {
@@ -899,6 +951,7 @@ const compileLayers = (blocks) => {
     const pattern = ctx.createPattern(TEXTURES["wall"], "repeat");
 
     items.forEach((item) => {
+      ctx.globalCompositeOperation = "source-over";
       ctx.fillStyle = pattern;
       ctx.fillRect(
         width - item.width - item.x + x,
@@ -913,6 +966,8 @@ const compileLayers = (blocks) => {
         item.width,
         item.height
       );
+      ctx.lineWidth = strokeThickness;
+      ctx.globalCompositeOperation = "source-atop";
       ctx.strokeRect(
         width - item.width - item.x + x,
         height + z - item.z - item.height,
@@ -929,7 +984,7 @@ const compileLayers = (blocks) => {
       (blob) => {
         const url = URL.createObjectURL(blob);
         const img = newImg({
-          class: "side",
+          // class: "side",
           style: `transform: translate3d(${x}px, ${yVal - height * 0.5}px, ${
             z + height * 0.5
           }px) rotate3d(1, 0, 0, -90deg) rotate3d(0, 1, 0, 180deg)`,
@@ -947,16 +1002,20 @@ const compileLayers = (blocks) => {
         img.src = url;
       },
       "image/webp",
-      0.75
+      faceQuality
     );
   });
 
   //BOTTOM FACES
-  const uniqueBottomVals = [...new Set(blocks.map((block) => block.z))];
+  const uniqueBottomVals = [
+    ...new Set(
+      blocks.filter((block) => !block.omit.bottom).map((block) => block.z)
+    ),
+  ];
 
   const bottomFaceLayers = uniqueBottomVals.map((val) => [
     val,
-    blocks.filter((block) => block.z === val && !block.omit.bottom),
+    blocks.filter((block) => block.z === val),
   ]);
 
   bottomFaceLayers.forEach(([zVal, items]) => {
@@ -972,6 +1031,7 @@ const compileLayers = (blocks) => {
     const pattern = ctx.createPattern(TEXTURES["wall"], "repeat");
 
     items.forEach((item) => {
+      ctx.globalCompositeOperation = "source-over";
       ctx.fillStyle = pattern;
       ctx.fillRect(
         width - item.width - item.x + x,
@@ -986,6 +1046,8 @@ const compileLayers = (blocks) => {
         item.width,
         item.length
       );
+      ctx.lineWidth = strokeThickness;
+      ctx.globalCompositeOperation = "source-atop";
       ctx.strokeRect(
         width - item.width - item.x + x,
         item.y - y,
@@ -1002,7 +1064,7 @@ const compileLayers = (blocks) => {
       (blob) => {
         const url = URL.createObjectURL(blob);
         const img = newImg({
-          class: "side",
+          // class: "side",
           style: `transform: translate3d(${x}px, ${y}px, ${zVal}px) rotate3d(0, 1, 0, 180deg)`,
         });
 
@@ -1018,12 +1080,10 @@ const compileLayers = (blocks) => {
         img.src = url;
       },
       "image/webp",
-      0.75
+      faceQuality
     );
   });
 };
-
-//
 
 (async () => {
   await loadAllTextures(["grass", "wall"]);
@@ -1031,11 +1091,13 @@ const compileLayers = (blocks) => {
   await compileLayers(Block.instances);
 
   setTimeout(
-    () => console.log([...document.querySelectorAll(".side")].length),
-    4000
+    () => console.log([...document.querySelectorAll("img")].length),
+    6000
   );
+
+  initPlayerVariables(PLAYER, 1024, 1024, 768);
 
   SCENE.append(PLAYER.colBoxBottom, PLAYER.colBoxTop, PLAYER.spriteImg);
 
-  step(performance.now());
+  requestAnimationFrame((ts) => step(performance.now(), ts));
 })();
