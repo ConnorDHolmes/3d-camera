@@ -8,17 +8,23 @@ const scaleProps = (obj) => {
   );
 };
 
+const filterMultiplier = 1;
+
 document.body.innerHTML += `<svg>
       <filter id="pixelate" x="0" y="0">
-        <feFlood x="${2 * scaleMultiplier}" y="${
-  2 * scaleMultiplier
-}" height="${1 * scaleMultiplier}" width="${1 * scaleMultiplier}" />
-        <feComposite width="${5 * scaleMultiplier}" height="${
-  5 * scaleMultiplier
+        <feFlood x="${2 * scaleMultiplier * filterMultiplier}" y="${
+  2 * scaleMultiplier * filterMultiplier
+}" height="${1 * scaleMultiplier * filterMultiplier}" width="${
+  1 * scaleMultiplier * filterMultiplier
 }" />
+        <feComposite width="${
+          5 * scaleMultiplier * filterMultiplier
+        }" height="${5 * scaleMultiplier * filterMultiplier}" />
         <feTile result="a" />
         <feComposite in="SourceGraphic" in2="a" operator="in" />
-        <feMorphology operator="dilate" radius="${2.5 * scaleMultiplier}" />
+        <feMorphology operator="dilate" radius="${
+          2.5 * scaleMultiplier * filterMultiplier
+        }" />
       </filter>
     </svg>`;
 
@@ -251,6 +257,8 @@ new Block(512, 512, 0, 256, 256, 64);
 new Block(0, 0, 0, 4096, 4096, 0);
 //
 
+new Block(0, 0, 480, 1024, 1024, 32);
+
 new Block(256, 128, 0, 0, 256, 192);
 
 new Block(256, 128, 0, 256, 0, 192);
@@ -263,17 +271,17 @@ new Block(1536, 768, 384, 256, 512, 16);
 
 new Block(1792, 1024, 0, 384, 512, 480);
 
-new Block(256, 2048, 0, 64, 512, 256, { top: true });
+new Block(256, 2048, 0, 64, 512, 288);
 
-new Block(512, 2048, 0, 64, 1024, 256, { top: true });
+new Block(512, 2048, 0, 64, 1024, 288);
 
 new Block(576, 2176, 0, 128, 128, 128, { left: true });
 
-new Block(256, 2048, 256, 320, 1024, 32);
+new Block(320, 2048, 256, 192, 1024, 32, { right: true });
 
 new Block(3840, 3840, 0, 256, 256, 256);
 
-new Block(2048, 2048, 0, 384, 384, 768);
+new Block(2048, 2048, 0, 384, 384, 1024);
 
 new Block(1920, 1920, 384, 1280, 640, 64, { front: true });
 
@@ -309,14 +317,13 @@ class Player extends Entity {
     height,
     acceleration,
     friction,
-    maxSpeed,
-    maxVSpeed
+    maxSpeed
   ) {
     super(x, y, z, width, length, height);
     this.acceleration = acceleration;
     this.friction = friction;
     this.maxSpeed = maxSpeed;
-    this.maxVSpeed = maxVSpeed;
+
     this.velocity = {
       x: 0,
       y: 0,
@@ -444,8 +451,9 @@ class Player extends Entity {
     this.z += this.velocity.z;
   }
 }
+//x, y, z, width, length, height, acceleration, friction, maxSpeed;
 
-const PLAYER = new Player(128, 128, 0, 64, 64, 96, 0.4, 0.85, 5, 8);
+const PLAYER = new Player(128, 128, 0, 64, 64, 96, 0.4, 0.85, 5);
 
 //temp visualization element
 PLAYER.colBoxBottom = newDiv({ id: "player-col" });
@@ -504,7 +512,15 @@ const resolveHiddenFaces = (angleZ) => {
 
 let TOGGLER = true;
 
-const initPlayerVariables = (player, perspective, width, height) => {
+const FOG = {
+  color: "#dedede",
+  dist: 1536,
+  depth: 32,
+  width: 4096,
+  height: 4096,
+};
+
+const initStaticVariables = (player, perspective, width, height, fog) => {
   VIEWPORT.style.cssText = `
   --width:${width * scaleMultiplier}px;
   --height:${height * scaleMultiplier}px;
@@ -512,7 +528,10 @@ const initPlayerVariables = (player, perspective, width, height) => {
   --perspective:${perspective * scaleMultiplier}px;
   --player-height:${player.height * scaleMultiplier}px;
   --player-width:${player.width * scaleMultiplier}px;
-  --player-length:${player.length * scaleMultiplier}px`;
+  --player-length:${player.length * scaleMultiplier}px;
+  --fog-color:${fog.color};
+  --fog-width:${fog.width * scaleMultiplier}px;
+  --fog-height:${fog.height * scaleMultiplier}px`;
 };
 
 const returnCSSText = (
@@ -523,7 +542,8 @@ const returnCSSText = (
   pZ,
   pWidth,
   pLength,
-  pHeight
+  pHeight,
+  fog
 ) => {
   // const sceneX = pX * -1 - pWidth * 0.5;
   // const sceneY = pY * -1 - pLength * 0.5;
@@ -541,7 +561,15 @@ const returnCSSText = (
   --scene-z:${scaledVals.pZ * -1 - scaledVals.pHeight}px;
   --player-x:${scaledVals.pX}px;
   --player-y:${scaledVals.pY}px;
-  --player-z:${scaledVals.pZ}px;`;
+  --player-z:${scaledVals.pZ}px;
+  --fog-x:${
+    scaledVals.pX - fog.width * 0.5 * scaleMultiplier + scaledVals.pWidth * 0.5
+  }px;
+  --fog-y:${
+    scaledVals.pY -
+    fog.height * 0.5 * scaleMultiplier +
+    scaledVals.pLength * 0.5
+  }px;`;
 };
 
 //--right-vis:${rightVis};--left-vis:${leftVis};--back-vis:${backVis};--front-vis:${frontVis}
@@ -568,6 +596,7 @@ const step = (then, timeStamp) => {
   const mult = (timeStamp - then) * SPEED_MULTIPLIER;
 
   EasedValue.ease(mult);
+
   resolveInputs(angleZ.target, PLAYER);
 
   SCENE_STYLE.cssText = returnCSSText(
@@ -578,7 +607,8 @@ const step = (then, timeStamp) => {
     PLAYER.z,
     PLAYER.width,
     PLAYER.length,
-    PLAYER.height
+    PLAYER.height,
+    FOG
   );
 
   requestAnimationFrame((newTimeStamp) => step(timeStamp, newTimeStamp));
@@ -586,7 +616,7 @@ const step = (then, timeStamp) => {
 
 //LAYER BUILDING
 
-const compileLayers = (unscaledBlocks) => {
+const compileLayers = async (unscaledBlocks) => {
   const blocks = unscaledBlocks.map((block) => {
     const { x, y, z, width, length, height, omit } = block;
     return {
@@ -616,9 +646,11 @@ const compileLayers = (unscaledBlocks) => {
     ),
   ];
 
+  //figure out how to make all omit values be honored from the start
+
   const topFaceLayers = uniqueTopVals.map((val) => [
     val,
-    blocks.filter((block) => block.z + block.height === val),
+    blocks.filter((block) => block.z + block.height === val && !block.omit.top),
   ]);
 
   topFaceLayers.forEach(([zVal, items]) => {
@@ -642,8 +674,27 @@ const compileLayers = (unscaledBlocks) => {
       ctx.fillRect(item.x - x, item.y - y, item.width, item.length);
       ctx.lineWidth = strokeThickness;
       ctx.globalCompositeOperation = "source-atop";
-      ctx.strokeRect(item.x - x, item.y - y, item.width, item.length);
+      // ctx.strokeRect(item.x - x, item.y - y, item.width, item.length);
     });
+
+    const shadowCanvas = cnvs.cloneNode(true);
+    const shadowCtx = shadowCanvas.getContext("2d");
+
+    shadowCtx.fillStyle = "black";
+    shadowCtx.shadowColor = "black";
+    shadowCtx.shadowBlur = 2;
+
+    shadowCtx.filter = "blur(8px)";
+
+    blocks
+      .filter((block) => block.z >= zVal && block.height !== 0)
+      .forEach((block) => {
+        shadowCtx.fillRect(block.x - x, block.y - y, block.width, block.length);
+      });
+
+    ctx.globalCompositeOperation = "source-atop";
+    ctx.globalAlpha = 0.45;
+    ctx.drawImage(shadowCanvas, 0, 0);
 
     ctx.fillStyle = "black";
     ctx.font = "100px serif";
@@ -686,7 +737,9 @@ const compileLayers = (unscaledBlocks) => {
 
   const frontFaceLayers = uniqueFrontVals.map((val) => [
     val,
-    blocks.filter((block) => block.y + block.length === val),
+    blocks.filter(
+      (block) => block.y + block.length === val && !block.omit.front
+    ),
   ]);
 
   frontFaceLayers.forEach(([yVal, items]) => {
@@ -719,12 +772,12 @@ const compileLayers = (unscaledBlocks) => {
       );
       ctx.lineWidth = strokeThickness;
       ctx.globalCompositeOperation = "source-atop";
-      ctx.strokeRect(
-        item.x - x,
-        height + z - item.z - item.height,
-        item.width,
-        item.height
-      );
+      // ctx.strokeRect(
+      //   item.x - x,
+      //   height + z - item.z - item.height,
+      //   item.width,
+      //   item.height
+      // );
     });
 
     ctx.fillStyle = "black";
@@ -767,7 +820,7 @@ const compileLayers = (unscaledBlocks) => {
 
   const leftFaceLayers = uniqueLeftVals.map((val) => [
     val,
-    blocks.filter((block) => block.x === val),
+    blocks.filter((block) => block.x === val && !block.omit.left),
   ]);
 
   leftFaceLayers.forEach(([xVal, items]) => {
@@ -800,12 +853,12 @@ const compileLayers = (unscaledBlocks) => {
       );
       ctx.lineWidth = strokeThickness;
       ctx.globalCompositeOperation = "source-atop";
-      ctx.strokeRect(
-        item.y - y,
-        height + z - item.z - item.height,
-        item.length,
-        item.height
-      );
+      // ctx.strokeRect(
+      //   item.y - y,
+      //   height + z - item.z - item.height,
+      //   item.length,
+      //   item.height
+      // );
     });
 
     ctx.fillStyle = "black";
@@ -852,7 +905,9 @@ const compileLayers = (unscaledBlocks) => {
 
   const rightFaceLayers = uniqueRightVals.map((val) => [
     val,
-    blocks.filter((block) => block.x + block.width === val),
+    blocks.filter(
+      (block) => block.x + block.width === val && !block.omit.right
+    ),
   ]);
 
   rightFaceLayers.forEach(([xVal, items]) => {
@@ -876,6 +931,7 @@ const compileLayers = (unscaledBlocks) => {
         item.length,
         item.height
       );
+
       ctx.fillStyle = sidesToLighting.right;
       ctx.fillRect(
         width - item.length - item.y + y,
@@ -885,12 +941,12 @@ const compileLayers = (unscaledBlocks) => {
       );
       ctx.lineWidth = strokeThickness;
       ctx.globalCompositeOperation = "source-atop";
-      ctx.strokeRect(
-        width - item.length - item.y + y,
-        height + z - item.z - item.height,
-        item.length,
-        item.height
-      );
+      // ctx.strokeRect(
+      //   width - item.length - item.y + y,
+      //   height + z - item.z - item.height,
+      //   item.length,
+      //   item.height
+      // );
     });
 
     ctx.fillStyle = "black";
@@ -935,7 +991,7 @@ const compileLayers = (unscaledBlocks) => {
 
   const backFaceLayers = uniqueBackVals.map((val) => [
     val,
-    blocks.filter((block) => block.y === val),
+    blocks.filter((block) => block.y === val && !block.omit.back),
   ]);
 
   backFaceLayers.forEach(([yVal, items]) => {
@@ -960,6 +1016,7 @@ const compileLayers = (unscaledBlocks) => {
         item.height
       );
       ctx.fillStyle = sidesToLighting.back;
+      // ctx.fillStyle = "red";
       ctx.fillRect(
         width - item.width - item.x + x,
         height + z - item.z - item.height,
@@ -968,17 +1025,19 @@ const compileLayers = (unscaledBlocks) => {
       );
       ctx.lineWidth = strokeThickness;
       ctx.globalCompositeOperation = "source-atop";
-      ctx.strokeRect(
-        width - item.width - item.x + x,
-        height + z - item.z - item.height,
-        item.width,
-        item.height
-      );
+      // ctx.strokeRect(
+      //   width - item.width - item.x + x,
+      //   height + z - item.z - item.height,
+      //   item.width,
+      //   item.height
+      // );
     });
 
+    ctx.globalCompositeOperation = "source-over";
+
     ctx.fillStyle = "black";
-    ctx.font = "100px serif";
-    // ctx.fillText(yVal, 64, 64);
+    ctx.font = "20px serif";
+    // ctx.fillText(yVal, 5, 20);
 
     cnvs.toBlob(
       (blob) => {
@@ -1015,7 +1074,7 @@ const compileLayers = (unscaledBlocks) => {
 
   const bottomFaceLayers = uniqueBottomVals.map((val) => [
     val,
-    blocks.filter((block) => block.z === val),
+    blocks.filter((block) => block.z === val && !block.omit.bottom),
   ]);
 
   bottomFaceLayers.forEach(([zVal, items]) => {
@@ -1048,12 +1107,12 @@ const compileLayers = (unscaledBlocks) => {
       );
       ctx.lineWidth = strokeThickness;
       ctx.globalCompositeOperation = "source-atop";
-      ctx.strokeRect(
-        width - item.width - item.x + x,
-        item.y - y,
-        item.width,
-        item.length
-      );
+      // ctx.strokeRect(
+      //   width - item.width - item.x + x,
+      //   item.y - y,
+      //   item.width,
+      //   item.length
+      // );
     });
 
     ctx.fillStyle = "black";
@@ -1085,17 +1144,32 @@ const compileLayers = (unscaledBlocks) => {
   });
 };
 
+const initFog = (fog) => {
+  const { depth, dist } = fog;
+
+  for (let i = 0; i < depth; i++) {
+    SCENE.append(
+      newDiv({
+        class: "fog",
+        style: `transform: translate3d(var(--fog-x), var(--fog-y), var(--player-z))
+    rotate3d(0, 0, 1, calc(var(--angle-z) * -1))
+    translate3d(0, ${
+      (dist * scaleMultiplier + i * 4) * -1
+    }px, 0) rotate3d(1, 0, 0, -90deg);
+    opacity: ${1 - Math.pow(0.001, 1 / depth)}`,
+      })
+    );
+  }
+};
+
 (async () => {
+  initFog(FOG);
+
   await loadAllTextures(["grass", "wall"]);
 
   await compileLayers(Block.instances);
 
-  setTimeout(
-    () => console.log([...document.querySelectorAll("img")].length),
-    6000
-  );
-
-  initPlayerVariables(PLAYER, 1024, 1024, 768);
+  initStaticVariables(PLAYER, 1024, 1024, 768, FOG);
 
   SCENE.append(PLAYER.colBoxBottom, PLAYER.colBoxTop, PLAYER.spriteImg);
 

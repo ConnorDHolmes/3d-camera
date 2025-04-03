@@ -24,14 +24,15 @@ body {
   contain-intrinsic-size: var(--width) var(--height);
   contain: strict;
   perspective: var(--perspective);
-  background-color: lightblue;
-  filter: url("#pixelate");
+  background-color: var(--fog-color);
   transform: scale3d(var(--scale), var(--scale), 1);
+  filter: url("#pixelate");
   pointer-events: none;
 }
 
 svg {
   position: absolute;
+  pointer-events: none;
 }
 
 #scene,
@@ -47,7 +48,6 @@ svg {
   contain: layout size;
   contain-intrinsic-size: 0;
   inset: 50%;
-  /* image-rendering: optimizeSpeed; */
   image-rendering: pixelated;
   transform-style: preserve-3d;
   /* for 1st person, change translateZ value to same value as viewport perspective */
@@ -60,16 +60,16 @@ svg {
 #player-col {
   contain-intrinsic-size: 0;
   /* no idea if the will-change is effective here */
-  /* will-change: transform; */
+  will-change: transform;
   width: var(--player-width);
   height: var(--player-length);
   transform: translate3d(var(--player-x), var(--player-y), var(--player-z));
   background-color: red;
-  /* backface-visibility: hidden; */
   z-index: 1;
 }
 
 #player-col-top {
+  display: none;
   contain-intrinsic-size: 0;
   /* will-change: transform; */
   width: var(--player-width);
@@ -84,6 +84,7 @@ svg {
 }
 
 #player-sprite {
+  display: none;
   contain-intrinsic-size: 0;
   width: var(--player-width);
   height: var(--player-height);
@@ -99,7 +100,20 @@ svg {
   background-color: pink;
 }
 
-img {
+/* .fog {
+  contain-intrinsic-size: 0;
+  contain: strict;
+  position: absolute;
+  backface-visibility: hidden;
+  inset: -50%;
+  background-color: #ddd;
+} */
+
+.fog {
+  contain-intrinsic-size: 0;
+  width: var(--fog-width);
+  height: var(--fog-height);
+  background-color: var(--fog-color);
 }
 
 /* .side {
