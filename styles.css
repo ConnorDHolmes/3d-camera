@@ -26,7 +26,7 @@ body {
   perspective: var(--perspective);
   background-color: var(--fog-color);
   transform: scale3d(var(--scale), var(--scale), 1);
-  filter: url("#pixelate");
+  /* filter: url("#pixelate"); */
   pointer-events: none;
 }
 
@@ -60,7 +60,7 @@ svg {
 #player-col {
   contain-intrinsic-size: 0;
   /* no idea if the will-change is effective here */
-  will-change: transform;
+  /* will-change: transform; */
   width: var(--player-width);
   height: var(--player-length);
   transform: translate3d(var(--player-x), var(--player-y), var(--player-z));
@@ -100,17 +100,9 @@ svg {
   background-color: pink;
 }
 
-/* .fog {
-  contain-intrinsic-size: 0;
-  contain: strict;
-  position: absolute;
-  backface-visibility: hidden;
-  inset: -50%;
-  background-color: #ddd;
-} */
-
 .fog {
   contain-intrinsic-size: 0;
+  contain: strict;
   width: var(--fog-width);
   height: var(--fog-height);
   background-color: var(--fog-color);

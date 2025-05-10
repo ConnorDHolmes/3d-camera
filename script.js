@@ -32,29 +32,6 @@ document.body.innerHTML += `<svg>
 
 const worldLength = 4096;
 
-const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
-
-const on = (event, callback, target = window) =>
-  target.addEventListener(event, callback);
-
-const onFirst = (event, callback, target = window) =>
-  target.addEventListener(event, callback, { once: true });
-
-const toRadians = (deg) => deg * (Math.PI / 180);
-
-const sin = (angle) => Math.sin(toRadians(angle));
-
-const cos = (angle) => Math.cos(toRadians(angle));
-
-const newTag = (tag, { class: className, ...rest }) =>
-  Object.assign(document.createElement(tag), className && { className }, rest);
-
-const newDiv = (attributes = {}) => newTag("div", attributes);
-
-const newImg = (attributes = {}) => newTag("img", attributes);
-
-const newCanvas = (attributes = {}) => newTag("canvas", attributes);
-
 //TEXTURE LOADING
 
 const TEXTURES = {};
@@ -387,7 +364,7 @@ class Player extends Entity {
   }
 
   gravity() {
-    this.velocity.z -= this.acceleration * 0.25;
+    this.velocity.z -= this.acceleration * 0.5;
   }
 
   checkCollision() {
@@ -453,7 +430,7 @@ class Player extends Entity {
 }
 //x, y, z, width, length, height, acceleration, friction, maxSpeed;
 
-const PLAYER = new Player(128, 128, 0, 64, 64, 96, 0.4, 0.85, 5);
+const PLAYER = new Player(128, 128, 0, 64, 64, 96, 0.8, 0.75, 10);
 
 //temp visualization element
 PLAYER.colBoxBottom = newDiv({ id: "player-col" });
@@ -463,7 +440,7 @@ PLAYER.spriteImg = newDiv({ id: "player-sprite" });
 const resolveInputs = (angleZ, p) => {
   if (PRESSING.SPACE && p.canJump) {
     p.canJump = false;
-    p.velocity.z = 6;
+    p.velocity.z = 12;
   }
 
   if (PRESSING.UP || PRESSING.DOWN || PRESSING.LEFT || PRESSING.RIGHT) {
@@ -513,9 +490,10 @@ const resolveHiddenFaces = (angleZ) => {
 let TOGGLER = true;
 
 const FOG = {
-  color: "#dedede",
-  dist: 1536,
-  depth: 32,
+  // color: "#dedede",
+  color: "lightblue",
+  dist: 1792,
+  depth: 24,
   width: 4096,
   height: 4096,
 };
@@ -588,13 +566,50 @@ on("mousemove", (e) => {
 //LOOP
 
 const TARGET_FPS = 60;
-const SPEED_MULTIPLIER = 1 / (1000 / TARGET_FPS);
+const FRAME_INTERVAL_MS = 1000 / TARGET_FPS;
+const SPEED_MULTIPLIER = 1 / FRAME_INTERVAL_MS;
 
 const SCENE_STYLE = SCENE.style;
 
-const step = (then, timeStamp) => {
-  const mult = (timeStamp - then) * SPEED_MULTIPLIER;
+let easeThen = 0;
+let logicThen = 0;
 
+const update = () =>
+  requestAnimationFrame((now) => {
+    const logicDeltaTime = now - logicThen;
+    const easeDeltaTime = now - easeThen;
+    const easeMult = easeDeltaTime * SPEED_MULTIPLIER;
+    easeThen = now;
+
+    if (logicDeltaTime >= FRAME_INTERVAL_MS) {
+      //all game logic
+      resolveInputs(angleZ.target, PLAYER);
+      // Synchronize next frame to arrive on time
+      const offset = logicDeltaTime % FRAME_INTERVAL_MS;
+      logicThen = now - offset;
+    }
+
+    update();
+
+    EasedValue.ease(easeMult);
+
+    SCENE_STYLE.cssText = returnCSSText(
+      angleX.eased,
+      angleZ.eased,
+      PLAYER.x,
+      PLAYER.y,
+      PLAYER.z,
+      PLAYER.width,
+      PLAYER.length,
+      PLAYER.height,
+      FOG
+    );
+  });
+
+const step = (then, timeStamp) => {
+  const deltaTime = timeStamp - then;
+
+  const mult = deltaTime * SPEED_MULTIPLIER;
   EasedValue.ease(mult);
 
   resolveInputs(angleZ.target, PLAYER);
@@ -752,7 +767,7 @@ const compileLayers = async (unscaledBlocks) => {
     const cnvs = newCanvas({ width, height });
     const ctx = cnvs.getContext("2d");
 
-    const pattern = ctx.createPattern(TEXTURES["wall"], "repeat");
+    const pattern = ctx.createPattern(TEXTURES["cement"], "repeat");
 
     items.forEach((item) => {
       ctx.globalCompositeOperation = "source-over";
@@ -833,7 +848,7 @@ const compileLayers = async (unscaledBlocks) => {
     const cnvs = newCanvas({ width, height });
     const ctx = cnvs.getContext("2d");
 
-    const pattern = ctx.createPattern(TEXTURES["wall"], "repeat");
+    const pattern = ctx.createPattern(TEXTURES["cement"], "repeat");
 
     items.forEach((item) => {
       ctx.globalCompositeOperation = "source-over";
@@ -920,7 +935,7 @@ const compileLayers = async (unscaledBlocks) => {
     const cnvs = newCanvas({ width, height });
     const ctx = cnvs.getContext("2d");
 
-    const pattern = ctx.createPattern(TEXTURES["wall"], "repeat");
+    const pattern = ctx.createPattern(TEXTURES["cement"], "repeat");
 
     items.forEach((item) => {
       ctx.globalCompositeOperation = "source-over";
@@ -1004,7 +1019,7 @@ const compileLayers = async (unscaledBlocks) => {
     const cnvs = newCanvas({ width, height });
     const ctx = cnvs.getContext("2d");
 
-    const pattern = ctx.createPattern(TEXTURES["wall"], "repeat");
+    const pattern = ctx.createPattern(TEXTURES["cement"], "repeat");
 
     items.forEach((item) => {
       ctx.globalCompositeOperation = "source-over";
@@ -1087,7 +1102,7 @@ const compileLayers = async (unscaledBlocks) => {
     const cnvs = newCanvas({ width, height });
     const ctx = cnvs.getContext("2d");
 
-    const pattern = ctx.createPattern(TEXTURES["wall"], "repeat");
+    const pattern = ctx.createPattern(TEXTURES["cement"], "repeat");
 
     items.forEach((item) => {
       ctx.globalCompositeOperation = "source-over";
@@ -1154,7 +1169,7 @@ const initFog = (fog) => {
         style: `transform: translate3d(var(--fog-x), var(--fog-y), var(--player-z))
     rotate3d(0, 0, 1, calc(var(--angle-z) * -1))
     translate3d(0, ${
-      (dist * scaleMultiplier + i * 4) * -1
+      (dist * scaleMultiplier + i * 8) * -1
     }px, 0) rotate3d(1, 0, 0, -90deg);
     opacity: ${1 - Math.pow(0.001, 1 / depth)}`,
       })
@@ -1163,9 +1178,9 @@ const initFog = (fog) => {
 };
 
 (async () => {
-  initFog(FOG);
+  // initFog(FOG);
 
-  await loadAllTextures(["grass", "wall"]);
+  await loadAllTextures(["grass", "wall", "cement", "up_arrow"]);
 
   await compileLayers(Block.instances);
 
@@ -1173,5 +1188,6 @@ const initFog = (fog) => {
 
   SCENE.append(PLAYER.colBoxBottom, PLAYER.colBoxTop, PLAYER.spriteImg);
 
-  requestAnimationFrame((ts) => step(performance.now(), ts));
+  // requestAnimationFrame((ts) => step(performance.now(), ts));
+  update();
 })();
